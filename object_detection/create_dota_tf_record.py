@@ -1,5 +1,5 @@
 import tensorflow as tf
-import utils.utils as util
+import object_detection.utils.utils as util
 import sys
 import os
 import io
@@ -28,10 +28,11 @@ def create_tf_example(data,
   if image.format != 'JPEG':
     raise ValueError('Image format not JPEG')
 
-  width = 1024
-  height = 1024
-  #width = 608
-  #height = 608
+  #width = 1024
+  #height = 1024
+#   width = 608
+#   height = 608
+  width, height = image.size
   image_format = None # b'jpeg' or b'png'
 
   xmins = [] # List of normalized left x coordinates in bounding box (1 per box)
@@ -129,8 +130,8 @@ def tf_write(testortrain, tf_records_name):
     writer.close()
 
 def main(_):
-    tf_write('test.txt', 'dota_test.record')
-    tf_write('train.txt', 'dota_train.record')
+    tf_write('val.txt', 'dota_val.tfrecord')
+    tf_write('train.txt', 'dota_train.tfrecord')
     #tf_write('test.txt', 'dota_test_608.record')
     #tf_write('train.txt', 'dota_train_608.record')
 
