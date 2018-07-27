@@ -7,6 +7,9 @@ import PIL.Image
 from object_detection.utils import dataset_util
 from object_detection.utils import label_map_util
 
+SAMPLES_PER_RECORD = 200
+
+
 flags = tf.app.flags
 flags.DEFINE_string('data_dir', r'pathtodota', 'Root directory to raw bod dataset.')
 flags.DEFINE_string('label_map_path', r'',
@@ -96,13 +99,18 @@ def create_tf_example(data,
   #print 'tf_example: ', tf_example
   return tf_example
 
+
+def get_output_filename(tf_records_name, fidx, file_num):
+    return '%s.record-%05d-%05d' % (tf_records_name, fidx, file_num)
+
+
 def tf_write(testortrain, tf_records_name):
     """
     :param testortrain: This is the index file for training data and test data. Please put them under the FLAGS.Data_dir path.
     :param tf_records_name:
     :return:
     """
-    writer = tf.python_io.TFRecordWriter(os.path.join(FLAGS.data_dir, 'tf_records', tf_records_name))
+    #writer = tf.python_io.TFRecordWriter(os.path.join(FLAGS.data_dir, 'tf_records', tf_records_name))
 
     print ('start-------')
     # TODO(user): Write code to read in your dataset to examples variable
@@ -114,24 +122,50 @@ def tf_write(testortrain, tf_records_name):
     lines = f.readlines()
     txtlist = [x.strip().replace(r'JPEGImages', r'wordlabel').replace('.jpg', '.txt') for x in lines]
     #txtlist = util.GetFileFromThisRootDir(os.path.join(data_dir, 'wordlabel'))
-    for fullname in txtlist:
-        data = util.parse_bod_rec(fullname)
-        #print 'len(data):', len(data)
-        #print 'data:', data
-        #assert len(data) >= 0, "there exists empty data: " + fullname
-        basename = os.path.basename(os.path.splitext(fullname)[0])
-        label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
-        #print 'label_map_dict', label_map_dict
-        tf_example = create_tf_example(data,
-                                       imagepath,
-                                       label_map_dict,
-                                       basename)
-        writer.write(tf_example.SerializeToString())
-    writer.close()
+    i = 0
+    fidx = 0
+    file_num = len(txtlist)/SAMPLES_PER_RECORD + 1
+    # for fullname, i in enumerate(txtlist):
+    #     data = util.parse_bod_rec(fullname)
+    #     #print 'len(data):', len(data)
+    #     #print 'data:', data
+    #     #assert len(data) >= 0, "there exists empty data: " + fullname
+    #     basename = os.path.basename(os.path.splitext(fullname)[0])
+    #     label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
+    #     #print 'label_map_dict', label_map_dict
+    #     tf_example = create_tf_example(data,
+    #                                    imagepath,
+    #                                    label_map_dict,
+    #                                    basename)
+    #
+    #     writer.write(tf_example.SerializeToString())
+    # writer.close()
+    while i < len(txtlist):
+        # Open new TFRecord file.
+        tf_filename = get_output_filename(tf_records_name, fidx, file_num)
+        with tf.python_io.TFRecordWriter(os.path.join(FLAGS.data_dir, 'tf_records', tf_filename)) as tfrecord_writer:
+            j = 0
+            while i < len(txtlist) and j < SAMPLES_PER_RECORD:
+                sys.stdout.write('\r>> Converting image %d/%d' % (i+1, len(txtlist)))
+                sys.stdout.flush()
+
+                fullname = txtlist[i]
+                data = util.parse_bod_rec(fullname)
+                basename = os.path.basename(os.path.splitext(fullname)[0])
+                label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
+                tf_example = create_tf_example(data,
+                                               imagepath,
+                                               label_map_dict,
+                                               basename)
+                tfrecord_writer.write(tf_example.SerializeToString())
+                i += 1
+                j += 1
+            fidx += 1
+    print('\nFinished converting the DOTA dataset!')
 
 def main(_):
-    tf_write('val.txt', 'dota_val.tfrecord')
-    tf_write('train.txt', 'dota_train.tfrecord')
+    tf_write('val.txt', 'dota_val')
+    tf_write('train.txt', 'dota_train')
     #tf_write('test.txt', 'dota_test_608.record')
     #tf_write('train.txt', 'dota_train_608.record')
 
